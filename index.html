@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tokei - Gerenciador de Tarefas com Relógio</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <h1>Tokei</h1>
+            <a href="https://example.com/donate" class="donate-button" target="_blank" rel="noopener">
+                <span class="material-symbols-outlined">favorite</span>
+                Doar
+            </a>
+        </div>
+    </header>
+
+    <main class="app-container">
+        <section class="clock-section">
+            <div class="clock-container">
+                <div id="digital-clock" class="digital-clock"></div>
+                <div id="date-display" class="date-display"></div>
+                <div class="clock-controls">
+                    <button id="toggle-format" class="mdc-button">
+                        <span class="material-symbols-outlined">schedule</span>
+                        Alternar Formato
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="tasks-section">
+            <div class="tasks-header">
+                <h2>Minhas Tarefas</h2>
+                <div class="task-controls">
+                    <button id="add-task" class="mdc-button mdc-button--raised">
+                        <span class="material-symbols-outlined">add</span>
+                        Nova Tarefa
+                    </button>
+                    <button id="import-export" class="mdc-button">
+                        <span class="material-symbols-outlined">import_export</span>
+                        Importar/Exportar
+                    </button>
+                </div>
+            </div>
+
+            <div id="task-form-container" class="task-form-container hidden">
+                <form id="task-form" class="task-form">
+                    <input type="text" id="task-title" placeholder="Título da Tarefa" required>
+                    <textarea id="task-description" placeholder="Descrição (opcional)"></textarea>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-date">Data:</label>
+                            <input type="date" id="task-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-time">Hora:</label>
+                            <input type="time" id="task-time" required>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="cancel-task" class="mdc-button">Cancelar</button>
+                        <button type="submit" class="mdc-button mdc-button--raised">Salvar</button>
+                    </div>
+                    <input type="hidden" id="task-id">
+                </form>
+            </div>
+
+            <div id="tasks-list" class="tasks-list">
+                <!-- Tasks will be inserted here dynamically -->
+            </div>
+        </section>
+
+        <div id="import-export-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h3>Importar/Exportar Tarefas</h3>
+                <div class="modal-actions">
+                    <button id="export-tasks" class="mdc-button mdc-button--raised">
+                        <span class="material-symbols-outlined">download</span>
+                        Exportar Tarefas
+                    </button>
+                    <button id="import-tasks" class="mdc-button mdc-button--raised">
+                        <span class="material-symbols-outlined">upload</span>
+                        Importar Tarefas
+                    </button>
+                    <input type="file" id="file-input" accept=".json,.txt" class="hidden">
+                </div>
+            </div>
+        </div>
+
+        <div id="notification" class="notification hidden"></div>
+    </main>
+
+    <script src="scripts/clock.js"></script>
+    <script src="scripts/storage.js"></script>
+    <script src="scripts/taskManager.js"></script>
+    <script src="scripts/notifications.js"></script>
+    <script src="scripts/exportImport.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.digitalClock = new DigitalClock();
+            window.taskManager = new TaskManager();
+            window.notificationManager = new NotificationManager();
+
+            if ('Notification' in window && Notification.permission !== 'granted') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        console.log('Permissão para notificações concedida');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
