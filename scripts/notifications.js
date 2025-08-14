@@ -1,38 +1,87 @@
+/**
+ * Tokei - notifications.js
+ * Gerencia notificações locais (na página) e notificações do sistema (Push API).
+ */
+
 class NotificationManager {
   constructor() {
+    this.notificationContainer = document.getElementById(
+      "notification-container"
+    );
     this.notificationTimeout = null;
-    this.init();
+    this.permission = Notification.permission;
   }
 
-  init() {
-    this.requestPermission();
-  }
-
-  requestPermission() {
-    if ("Notification" in window && Notification.permission !== "denied") {
-      Notification.requestPermission().then((permission) => {
-        console.log("Permissão para notificações:", permission);
-      });
+  /**
+   * Solicita permissão para exibir notificações do sistema ao usuário.
+   * @returns {Promise<string>} O status da permissão ('granted', 'denied', 'default').
+   */
+  async requestSystemPermission() {
+    if (!("Notification" in window)) {
+      console.warn("Este navegador não suporta notificações.");
+      return "denied";
     }
+
+    if (this.permission === "granted") {
+      return "granted";
+    }
+
+    this.permission = await Notification.requestPermission();
+
+    if (this.permission === "denied") {
+      this.showLocal(
+        "As notificações estão bloqueadas. Ative nas configurações do navegador.",
+        "error",
+        10000 // Mostra por mais tempo
+      );
+    }
+
+    return this.permission;
   }
 
-  showLocalNotification(message, type = "info") {
-    const notification = document.getElementById("notification");
-    if (!notification) return;
-
-    notification.textContent = message;
-    notification.className = `notification ${type}`;
-    notification.classList.remove("hidden");
+  /**
+   * Exibe uma notificação local (um banner na página).
+   * @param {string} message - A mensagem a ser exibida.
+   * @param {string} type - O tipo de notificação ('info', 'success', 'error').
+   * @param {number} duration - Duração em milissegundos.
+   */
+  showLocal(message, type = "info", duration = 4000) {
+    if (!this.notificationContainer) return;
 
     clearTimeout(this.notificationTimeout);
+
+    this.notificationContainer.textContent = message;
+    this.notificationContainer.className = `notification ${type}`;
+    this.notificationContainer.classList.remove("hidden");
+
     this.notificationTimeout = setTimeout(() => {
-      notification.classList.add("hidden");
-    }, 5000);
+      this.notificationContainer.classList.add("hidden");
+    }, duration);
   }
 
-  showSystemNotification(title, body) {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body });
+  /**
+   * Exibe uma notificação do sistema operacional.
+   * @param {string} title - O título da notificação.
+   * @param {object} options - Opções da notificação (body, icon, etc.).
+   */
+  async showSystem(title, options) {
+    // Garante que temos a permissão mais recente antes de tentar notificar
+    if (this.permission !== "granted") {
+      const currentPermission = await this.requestSystemPermission();
+      if (currentPermission !== "granted") {
+        console.log("Permissão para notificar negada.");
+        return;
+      }
+    }
+
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) {
+      const defaultOptions = {
+        icon: "/tokei/assets/icons/icon-192x192.svg",
+        badge: "/tokei/assets/icons/badge-72x72.svg",
+        ...options,
+      };
+      reg.showNotification(title, defaultOptions);
     }
   }
 }

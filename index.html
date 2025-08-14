@@ -4,31 +4,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO Meta Tags -->
     <title>Tokei - Gerenciador de Tarefas com Relógio</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
-    <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <meta name="description" content="Tokei é um gerenciador de tarefas simples e elegante com um relógio digital integrado para ajudar você a organizar seu dia e aumentar sua produtividade.">
+    <meta name="keywords" content="gerenciador de tarefas, to-do list, lista de tarefas, produtividade, organização, relógio digital, pwa, tokei">
+
+    <meta name="theme-color" content="#1a73e8">
+
+    <!-- Manifest and Icons -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192x192.svg">
+    <link rel="icon" href="assets/icons/icon-512x512.svg">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+
+    <!-- Stylesheet -->
     <link rel="stylesheet" href="styles/main.css">
+
+    <!-- Scripts (deferred for performance) -->
+    <script src="scripts/notifications.js" defer></script>
+    <script src="scripts/dialogs.js" defer></script>
+    <script src="scripts/clock.js" defer></script>
+    <script src="scripts/taskManager.js" defer></script>
+    <script src="scripts/exportImport.js" defer></script>
+    <script src="scripts/main.js" defer></script>
 </head>
 
 <body>
     <header class="app-header">
         <div class="header-content">
             <h1>Tokei</h1>
-            <a href="https://example.com/donate" class="donate-button" target="_blank" rel="noopener">
+            <button id="donate-btn" class="donate-button">
                 <span class="material-symbols-outlined">favorite</span>
-                Doar
-            </a>
+                Apoiar
+            </button>
         </div>
     </header>
 
     <main class="app-container">
+        <!-- Clock Section -->
         <section class="clock-section">
             <div class="clock-container">
-                <div id="digital-clock" class="digital-clock"></div>
+                <div id="digital-clock" class="digital-clock" aria-live="polite"></div>
                 <div id="date-display" class="date-display"></div>
                 <div class="clock-controls">
-                    <button id="toggle-format" class="mdc-button">
+                    <button id="toggle-format" class="mdc-button" aria-label="Alternar formato do relógio">
                         <span class="material-symbols-outlined">schedule</span>
                         Alternar Formato
                     </button>
@@ -36,89 +61,97 @@
             </div>
         </section>
 
+        <!-- Tasks Section -->
         <section class="tasks-section">
             <div class="tasks-header">
                 <h2>Minhas Tarefas</h2>
                 <div class="task-controls">
-                    <button id="add-task" class="mdc-button mdc-button--raised">
+                    <button id="add-task-btn" class="mdc-button mdc-button--raised">
                         <span class="material-symbols-outlined">add</span>
                         Nova Tarefa
                     </button>
-                    <button id="import-export" class="mdc-button">
+                    <button id="import-export-btn" class="mdc-button">
                         <span class="material-symbols-outlined">import_export</span>
                         Importar/Exportar
                     </button>
                 </div>
             </div>
 
+            <!-- Search and Sort Controls -->
+            <div class="tasks-options">
+                <div class="search-container">
+                    <span class="material-symbols-outlined">search</span>
+                    <input type="search" id="search-tasks" placeholder="Buscar tarefas...">
+                </div>
+                <div class="sort-container">
+                    <label for="sort-tasks">Ordenar por:</label>
+                    <select id="sort-tasks">
+                        <option value="date-asc">Data (Mais recentes)</option>
+                        <option value="date-desc">Data (Mais antigas)</option>
+                        <option value="title-asc">Título (A-Z)</option>
+                        <option value="title-desc">Título (Z-A)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Task Form (initially hidden) -->
             <div id="task-form-container" class="task-form-container hidden">
                 <form id="task-form" class="task-form">
-                    <input type="text" id="task-title" placeholder="Título da Tarefa" required>
-                    <textarea id="task-description" placeholder="Descrição (opcional)"></textarea>
+                    <input type="hidden" id="task-id" name="task-id">
+                    <div class="form-group">
+                        <label for="task-title">Título da Tarefa</label>
+                        <input type="text" id="task-title" name="task-title" placeholder="Ex: Reunião de equipe" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-description">Descrição (opcional)</label>
+                        <textarea id="task-description" name="task-description" placeholder="Ex: Discutir o progresso do projeto"></textarea>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="task-date">Data:</label>
-                            <input type="date" id="task-date" required>
+                            <input type="date" id="task-date" name="task-date" required>
                         </div>
                         <div class="form-group">
                             <label for="task-time">Hora:</label>
-                            <input type="time" id="task-time" required>
+                            <input type="time" id="task-time" name="task-time" required>
                         </div>
                     </div>
                     <div class="form-actions">
-                        <button type="button" id="cancel-task" class="mdc-button">Cancelar</button>
-                        <button type="submit" class="mdc-button mdc-button--raised">Salvar</button>
+                        <button type="button" id="cancel-task-btn" class="mdc-button">Cancelar</button>
+                        <button type="submit" class="mdc-button mdc-button--raised">Salvar Tarefa</button>
                     </div>
-                    <input type="hidden" id="task-id">
                 </form>
             </div>
 
+            <!-- Task List -->
             <div id="tasks-list" class="tasks-list">
-                <!-- Tasks will be inserted here dynamically -->
+                <!-- Tasks will be dynamically inserted here -->
             </div>
         </section>
 
+        <!-- Import/Export Modal (initially hidden) -->
         <div id="import-export-modal" class="modal hidden">
             <div class="modal-content">
-                <span class="close-modal">&times;</span>
-                <h3>Importar/Exportar Tarefas</h3>
+                <button class="close-modal-btn" aria-label="Fechar modal">&times;</button>
+                <h3>Importar & Exportar Tarefas</h3>
+                <p>Exporte suas tarefas para um arquivo JSON ou importe tarefas de um arquivo existente.</p>
                 <div class="modal-actions">
-                    <button id="export-tasks" class="mdc-button mdc-button--raised">
+                    <button id="export-tasks-btn" class="mdc-button mdc-button--raised">
                         <span class="material-symbols-outlined">download</span>
                         Exportar Tarefas
                     </button>
-                    <button id="import-tasks" class="mdc-button mdc-button--raised">
+                    <button id="import-tasks-btn" class="mdc-button mdc-button--raised">
                         <span class="material-symbols-outlined">upload</span>
                         Importar Tarefas
                     </button>
-                    <input type="file" id="file-input" accept=".json,.txt" class="hidden">
+                    <input type="file" id="file-input" accept=".json" class="hidden">
                 </div>
             </div>
         </div>
-
-        <div id="notification" class="notification hidden"></div>
     </main>
 
-    <script src="scripts/clock.js"></script>
-    <script src="scripts/storage.js"></script>
-    <script src="scripts/taskManager.js"></script>
-    <script src="scripts/notifications.js"></script>
-    <script src="scripts/exportImport.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            window.digitalClock = new DigitalClock();
-            window.taskManager = new TaskManager();
-            window.notificationManager = new NotificationManager();
+    <!-- Notification container -->
+    <div id="notification-container" class="notification hidden" role="alert"></div>
 
-            if ('Notification' in window && Notification.permission !== 'granted') {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        console.log('Permissão para notificações concedida');
-                    }
-                });
-            }
-        });
-    </script>
 </body>
-
 </html>

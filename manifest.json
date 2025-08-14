@@ -1,9 +1,10 @@
 {
-  "name": "TaskClock",
-  "short_name": "TaskClock",
-  "start_url": ".",
+  "name": "Tokei",
+  "short_name": "Tokei",
+  "description": "Um gerenciador de tarefas simples e elegante com um relógio digital.",
+  "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#1a73e8",
+  "background_color": "#f0f2f5",
   "theme_color": "#1a73e8",
   "icons": [
     {
@@ -15,6 +16,12 @@
       "src": "assets/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "assets/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

@@ -1,68 +1,69 @@
+/**
+ * Tokei - clock.js
+ * Gerencia o relógio digital e a exibição da data.
+ */
+
 class DigitalClock {
   constructor() {
     this.clockElement = document.getElementById("digital-clock");
     this.dateElement = document.getElementById("date-display");
     this.toggleButton = document.getElementById("toggle-format");
-    this.is24HourFormat = true;
 
-    // Exibir o relógio imediatamente ao carregar
-    this.updateClock();
+    // Carrega a preferência de formato do localStorage ou usa '24' como padrão.
+    this.is24HourFormat = localStorage.getItem("clockFormat") !== "12";
 
     this.init();
   }
 
   init() {
-    // Atualizar a cada segundo
+    // Atualiza o relógio imediatamente e depois a cada segundo.
+    this.updateClock();
     setInterval(() => this.updateClock(), 1000);
 
-    this.toggleButton.addEventListener("click", () => {
-      this.is24HourFormat = !this.is24HourFormat;
-      localStorage.setItem("clockFormat", this.is24HourFormat ? "24" : "12");
-      this.updateClock();
-    });
-
-    // Carregar preferência do formato
-    const savedFormat = localStorage.getItem("clockFormat");
-    if (savedFormat) {
-      this.is24HourFormat = savedFormat === "24";
-    }
+    // Adiciona o evento de clique para alternar o formato.
+    this.toggleButton.addEventListener("click", () => this.toggleFormat());
   }
 
+  /**
+   * Alterna entre o formato 24h e 12h.
+   */
+  toggleFormat() {
+    this.is24HourFormat = !this.is24HourFormat;
+    localStorage.setItem("clockFormat", this.is24HourFormat ? "24" : "12");
+    this.updateClock(); // Atualiza imediatamente após a troca.
+  }
+
+  /**
+   * Atualiza a exibição da hora e da data.
+   */
   updateClock() {
     const now = new Date();
-
-    // Formatar horas
     let hours = now.getHours();
     let ampm = "";
 
     if (!this.is24HourFormat) {
       ampm = hours >= 12 ? " PM" : " AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12; // Converter 0 para 12
+      hours = hours % 12 || 12; // Converte 0 para 12 para o formato 12h.
     }
 
+    // Garante que os números tenham sempre dois dígitos.
+    const formattedHours = hours.toString().padStart(2, "0");
     const minutes = now.getMinutes().toString().padStart(2, "0");
     const seconds = now.getSeconds().toString().padStart(2, "0");
 
     const timeString = this.is24HourFormat
-      ? `${hours}:${minutes}:${seconds}`
+      ? `${formattedHours}:${minutes}:${seconds}`
       : `${hours}:${minutes}:${seconds}${ampm}`;
 
     this.clockElement.textContent = timeString;
 
-    // Formatar data
-    const options = {
+    // Formata e exibe a data.
+    const dateOptions = {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     };
-    const dateString = now.toLocaleDateString(undefined, options);
-    this.dateElement.textContent = dateString;
+    this.dateElement.textContent = now.toLocaleDateString("pt-BR", dateOptions);
   }
 }
-
-// Inicializar imediatamente (não esperar DOMContentLoaded)
-document.addEventListener("DOMContentLoaded", () => {
-  window.digitalClock = new DigitalClock();
-});

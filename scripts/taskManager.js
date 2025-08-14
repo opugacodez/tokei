@@ -1,479 +1,364 @@
+/**
+ * Tokei - taskManager.js
+ * Gerencia a lógica de negócio das tarefas: criar, ler, atualizar, deletar e salvar.
+ */
+
 class TaskManager {
-  constructor() {
-    this.tasks = [];
+  constructor(notificationManager, dialogManager) {
+    this.notificationManager = notificationManager;
+    this.dialogManager = dialogManager;
+
+    // Elementos da DOM
+    this.tasksListElement = document.getElementById("tasks-list");
+    this.taskFormContainer = document.getElementById("task-form-container");
+    this.taskForm = document.getElementById("task-form");
+    this.addTaskBtn = document.getElementById("add-task-btn");
+    this.cancelTaskBtn = document.getElementById("cancel-task-btn");
+    this.searchInput = document.getElementById("search-tasks");
+    this.sortSelect = document.getElementById("sort-tasks");
+
+    // Estado
+    this.tasks = this.loadTasks();
     this.currentEditId = null;
-    this.notificationCheckInterval = null;
+    this.notificationTimeout = null;
+    this.searchTerm = "";
+    this.sortOrder = "date-asc";
+
+    // Canal para sincronização em tempo real entre abas
+    this.broadcastChannel = new BroadcastChannel("tokei-task-updates");
+
     this.init();
   }
 
-  init() {
-    this.loadTasks();
+  async init() {
     this.renderTasks();
     this.setupEventListeners();
-    this.startNotificationChecker();
-    this.requestNotificationPermission();
+    await this.notificationManager.requestSystemPermission();
+    this.scheduleNextNotification();
   }
 
   setupEventListeners() {
-    // Eventos do formulário
-    document
-      .getElementById("add-task")
-      .addEventListener("click", () => this.showTaskForm());
-    document
-      .getElementById("cancel-task")
-      .addEventListener("click", () => this.hideTaskForm());
-    document
-      .getElementById("task-form")
-      .addEventListener("submit", (e) => this.handleFormSubmit(e));
+    // Abrir e fechar formulário
+    this.addTaskBtn.addEventListener("click", () => this.showTaskForm());
+    this.cancelTaskBtn.addEventListener("click", () => this.hideTaskForm());
 
-    // Event delegation para ações das tarefas
-    document.getElementById("tasks-list").addEventListener("click", (e) => {
-      const taskElement = e.target.closest(".task-item");
-      if (!taskElement) return;
+    // Submissão do formulário
+    this.taskForm.addEventListener("submit", (e) => this.handleFormSubmit(e));
 
-      const taskId = taskElement.dataset.id;
-      const target = e.target.closest("button");
+    // Ações na lista de tarefas (delegação de eventos)
+    this.tasksListElement.addEventListener("click", (e) => {
+      const button = e.target.closest("[data-action]");
+      if (!button) return;
 
-      if (!target) return;
+      const action = button.dataset.action;
+      const taskId = button.closest(".task-item").dataset.id;
 
-      if (target.classList.contains("edit-task")) {
-        const task = this.tasks.find((t) => t.id === taskId);
-        this.showTaskForm(task);
-      } else if (target.classList.contains("delete-task")) {
-        this.confirmDeleteTask(taskId);
-      } else if (target.classList.contains("complete-task")) {
-        this.toggleTaskCompletion(taskId);
+      const actions = {
+        "edit-task": () => this.editTask(taskId),
+        "delete-task": () => this.confirmDeleteTask(taskId),
+        "toggle-complete": () => this.toggleTaskCompletion(taskId),
+      };
+
+      if (actions[action]) {
+        actions[action]();
       }
     });
 
-    // Eventos de importação/exportação
-    document
-      .getElementById("export-tasks")
-      .addEventListener("click", () => this.exportTasks());
-    document.getElementById("import-tasks").addEventListener("click", () => {
-      document.getElementById("file-input").click();
+    // Busca e Ordenação
+    this.searchInput.addEventListener("input", (e) => {
+      this.searchTerm = e.target.value.toLowerCase();
+      this.renderTasks();
     });
-    document
-      .getElementById("file-input")
-      .addEventListener("change", (e) => this.handleFileImport(e));
+
+    this.sortSelect.addEventListener("change", (e) => {
+      this.sortOrder = e.target.value;
+      this.renderTasks();
+    });
+
+    // Listener para sincronização entre abas via BroadcastChannel
+    this.broadcastChannel.onmessage = () => {
+      console.log("Mensagem recebida do Broadcast Channel. Atualizando UI...");
+      this.tasks = this.loadTasks();
+      this.renderTasks();
+      this.scheduleNextNotification();
+    };
   }
 
-  startNotificationChecker() {
-    // Limpar intervalo existente
-    if (this.notificationCheckInterval) {
-      clearInterval(this.notificationCheckInterval);
-    }
-
-    // Verificar tarefas a cada minuto
-    this.notificationCheckInterval = setInterval(() => {
-      this.checkTasksForNotifications();
-    }, 60000);
-
-    // Verificar imediatamente ao iniciar
-    this.checkTasksForNotifications();
-  }
-
-  requestNotificationPermission() {
-    if ("Notification" in window && Notification.permission !== "denied") {
-      Notification.requestPermission().then((permission) => {
-        console.log("Status da permissão de notificação:", permission);
-      });
-    }
-  }
-
+  /**
+   * Lógica do Formulário
+   */
   showTaskForm(task = null) {
-    const formContainer = document.getElementById("task-form-container");
-    const form = document.getElementById("task-form");
-
+    this.taskForm.reset();
     if (task) {
-      // Modo edição
-      form.elements["task-title"].value = task.title;
-      form.elements["task-description"].value = task.description || "";
-      form.elements["task-date"].value = task.date;
-      form.elements["task-time"].value = task.time;
-      form.elements["task-id"].value = task.id;
+      // Modo de Edição
+      this.taskForm.elements["task-id"].value = task.id;
+      this.taskForm.elements["task-title"].value = task.title;
+      this.taskForm.elements["task-description"].value = task.description || "";
+      this.taskForm.elements["task-date"].value = task.date;
+      this.taskForm.elements["task-time"].value = task.time;
       this.currentEditId = task.id;
     } else {
-      // Modo criação
-      form.reset();
-      const today = new Date().toISOString().split("T")[0];
-      const now = new Date().toTimeString().substring(0, 5);
-      form.elements["task-date"].value = today;
-      form.elements["task-time"].value = now;
+      // Modo de Criação
+      const now = new Date();
+      this.taskForm.elements["task-date"].value = now
+        .toISOString()
+        .split("T")[0];
+      this.taskForm.elements["task-time"].value = now
+        .toTimeString()
+        .substring(0, 5);
       this.currentEditId = null;
     }
-
-    formContainer.classList.remove("hidden");
-    form.elements["task-title"].focus();
+    this.taskFormContainer.classList.remove("hidden");
+    this.taskForm.elements["task-title"].focus();
   }
 
   hideTaskForm() {
-    document.getElementById("task-form-container").classList.add("hidden");
-    document.getElementById("task-form").reset();
+    this.taskFormContainer.classList.add("hidden");
     this.currentEditId = null;
   }
 
   handleFormSubmit(e) {
     e.preventDefault();
-
-    const form = e.target;
-    const title = form.elements["task-title"].value.trim();
-    const description = form.elements["task-description"].value.trim();
-    const date = form.elements["task-date"].value;
-    const time = form.elements["task-time"].value;
-    const taskId = form.elements["task-id"].value;
-
-    if (!title || !date || !time) {
-      this.showNotification("Preencha todos os campos obrigatórios", "error");
-      return;
-    }
-
+    const formData = new FormData(this.taskForm);
     const taskData = {
-      id: taskId || this.generateTaskId(),
-      title,
-      description,
-      date,
-      time,
+      id: formData.get("task-id") || `task_${Date.now()}`,
+      title: (formData.get("task-title") || "").trim(),
+      description: (formData.get("task-description") || "").trim(),
+      date: formData.get("task-date"),
+      time: formData.get("task-time"),
       completed: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      notified: false,
     };
 
     if (this.currentEditId) {
-      this.updateTask(taskData);
+      const index = this.tasks.findIndex((t) => t.id === this.currentEditId);
+      if (index !== -1) {
+        taskData.completed = this.tasks[index].completed;
+        this.tasks[index] = taskData;
+        this.notificationManager.showLocal(
+          "Tarefa atualizada com sucesso!",
+          "success"
+        );
+      }
     } else {
-      this.addTask(taskData);
-    }
-  }
-
-  generateTaskId() {
-    return Date.now().toString() + Math.floor(Math.random() * 1000).toString();
-  }
-
-  addTask(task) {
-    // Verificar se já existe tarefa com mesmo título e horário
-    const duplicate = this.tasks.some(
-      (t) =>
-        t.title === task.title && t.date === task.date && t.time === task.time
-    );
-
-    if (duplicate) {
-      this.showNotification(
-        "Já existe uma tarefa com este título e horário",
-        "error"
+      this.tasks.push(taskData);
+      this.notificationManager.showLocal(
+        "Tarefa adicionada com sucesso!",
+        "success"
       );
-      return;
     }
 
-    this.tasks.push(task);
-    this.saveAndUpdateUI();
-    this.showNotification("Tarefa adicionada com sucesso!");
+    this.saveAndRender();
+    this.hideTaskForm();
   }
 
-  updateTask(updatedTask) {
-    const index = this.tasks.findIndex((t) => t.id === updatedTask.id);
-
-    if (index === -1) {
-      this.showNotification("Tarefa não encontrada para atualização", "error");
-      return;
+  /**
+   * Ações CRUD de Tarefas
+   */
+  editTask(taskId) {
+    const task = this.tasks.find((t) => t.id === taskId);
+    if (task) {
+      this.showTaskForm(task);
     }
-
-    this.tasks[index] = updatedTask;
-    this.saveAndUpdateUI();
-    this.showNotification("Tarefa atualizada com sucesso!");
   }
 
-  confirmDeleteTask(taskId) {
+  async confirmDeleteTask(taskId) {
     const task = this.tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    const modal = document.createElement("div");
-    modal.className = "confirmation-modal";
-    modal.innerHTML = `
-      <div class="modal-content">
-        <h3>Confirmar exclusão</h3>
-        <p>Tem certeza que deseja excluir a tarefa "${task.title}"?</p>
-        <div class="modal-actions">
-          <button class="mdc-button cancel-delete">Cancelar</button>
-          <button class="mdc-button mdc-button--raised confirm-delete">Excluir</button>
-        </div>
-      </div>
-    `;
+    const result = await this.dialogManager.confirm(
+      `Tem certeza que deseja excluir a tarefa "${task.title}"?`
+    );
 
-    document.body.appendChild(modal);
-
-    modal.querySelector(".cancel-delete").addEventListener("click", () => {
-      document.body.removeChild(modal);
-    });
-
-    modal.querySelector(".confirm-delete").addEventListener("click", () => {
-      this.deleteTask(taskId);
-      document.body.removeChild(modal);
-    });
-  }
-
-  deleteTask(taskId) {
-    this.tasks = this.tasks.filter((task) => task.id !== taskId);
-    this.saveAndUpdateUI();
-    this.showNotification("Tarefa removida com sucesso!");
+    if (result === "confirm") {
+      this.tasks = this.tasks.filter((t) => t.id !== taskId);
+      this.saveAndRender();
+      this.notificationManager.showLocal("Tarefa removida.", "info");
+    }
   }
 
   toggleTaskCompletion(taskId) {
-    const index = this.tasks.findIndex((t) => t.id === taskId);
-    if (index === -1) return;
-
-    this.tasks[index] = {
-      ...this.tasks[index],
-      completed: !this.tasks[index].completed,
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.saveAndUpdateUI();
+    const task = this.tasks.find((t) => t.id === taskId);
+    if (task) {
+      task.completed = !task.completed;
+      this.saveAndRender();
+    }
   }
 
-  saveAndUpdateUI() {
+  /**
+   * Renderização e Persistência
+   */
+  saveAndRender() {
     this.saveTasks();
     this.renderTasks();
-    this.checkTasksForNotifications();
+    this.scheduleNextNotification();
+    this.broadcastChannel.postMessage({ type: "update" });
   }
 
   renderTasks() {
-    const tasksList = document.getElementById("tasks-list");
+    // 1. Filtrar
+    let processedTasks = this.tasks.filter(
+      (task) =>
+        task.title.toLowerCase().includes(this.searchTerm) ||
+        (task.description &&
+          task.description.toLowerCase().includes(this.searchTerm))
+    );
 
-    if (this.tasks.length === 0) {
-      tasksList.innerHTML =
-        '<p class="no-tasks">Nenhuma tarefa cadastrada.</p>';
-      return;
-    }
-
-    // Ordenar tarefas: não completadas primeiro, depois por data/hora
-    const sortedTasks = [...this.tasks].sort((a, b) => {
+    // 2. Ordenar
+    processedTasks.sort((a, b) => {
+      // Tarefas não concluídas sempre primeiro
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
       }
 
-      const dateA = new Date(`${a.date}T${a.time}`);
-      const dateB = new Date(`${b.date}T${b.time}`);
-      return dateA - dateB;
+      // Lógica de ordenação secundária
+      switch (this.sortOrder) {
+        case "date-asc":
+          return (
+            new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`)
+          );
+        case "date-desc":
+          return (
+            new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`)
+          );
+        case "title-asc":
+          return a.title.localeCompare(b.title);
+        case "title-desc":
+          return b.title.localeCompare(a.title);
+        default:
+          return 0;
+      }
     });
 
-    tasksList.innerHTML = sortedTasks
+    if (processedTasks.length === 0) {
+      this.tasksListElement.innerHTML = `<p class="no-tasks">${
+        this.searchTerm
+          ? "Nenhuma tarefa encontrada."
+          : "Nenhuma tarefa cadastrada. Adicione uma!"
+      }</p>`;
+      return;
+    }
+
+    this.tasksListElement.innerHTML = processedTasks
       .map((task) => this.createTaskElement(task))
       .join("");
   }
 
   createTaskElement(task) {
-    const dueDate = new Date(`${task.date}T${task.time}`);
     const now = new Date();
+    const dueDate = new Date(`${task.date}T${task.time}`);
     const isOverdue = !task.completed && dueDate < now;
     const isDueSoon =
-      !task.completed && !isOverdue && dueDate - now < 30 * 60 * 1000; // 30 minutos
+      !task.completed &&
+      !isOverdue &&
+      dueDate - now > 0 &&
+      dueDate - now < 30 * 60 * 1000; // 30 min
+
+    let statusClass = "";
+    let statusText = "";
+    if (isOverdue) {
+      statusClass = "overdue";
+      statusText = "Atrasada";
+    } else if (isDueSoon) {
+      statusClass = "due-soon";
+      statusText = "Em breve";
+    }
+
+    const formattedDate = dueDate.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+    });
 
     return `
-      <div class="task-item ${task.completed ? "completed" : ""}" data-id="${
-      task.id
-    }">
+      <div class="task-item ${
+        task.completed ? "completed" : ""
+      } ${statusClass}" data-id="${task.id}">
         <div class="task-header">
-          <div class="task-title">${task.title}</div>
+          <span class="task-title">${task.title}</span>
           <div class="task-actions">
-            <button class="task-button edit-task">
+            <button class="task-button" data-action="edit-task" aria-label="Editar Tarefa">
               <span class="material-symbols-outlined">edit</span>
             </button>
-            <button class="task-button delete-task">
+            <button class="task-button" data-action="delete-task" aria-label="Deletar Tarefa">
               <span class="material-symbols-outlined">delete</span>
-            </button>
-            <button class="task-button complete-task">
-              <span class="material-symbols-outlined">
-                ${task.completed ? "check_circle" : "radio_button_unchecked"}
-              </span>
             </button>
           </div>
         </div>
         ${
           task.description
-            ? `<div class="task-description">${task.description}</div>`
+            ? `<p class="task-description">${task.description}</p>`
             : ""
         }
-        <div class="task-datetime ${isOverdue ? "task-due" : ""} ${
-      isDueSoon ? "task-due-soon" : ""
-    }">
-          <span>${this.formatDate(task.date)} • ${task.time}</span>
-          ${isOverdue ? "<span>Atrasada</span>" : ""}
-          ${isDueSoon ? "<span>Em breve</span>" : ""}
+        <div class="task-footer">
+            <div class="task-datetime">
+                <span>${formattedDate} • ${task.time}</span>
+                ${
+                  statusText
+                    ? `<span class="due-status ${statusClass}">${statusText}</span>`
+                    : ""
+                }
+            </div>
+            <button class="task-button" data-action="toggle-complete" aria-label="Marcar como concluída">
+              <span class="material-symbols-outlined">${
+                task.completed ? "check_circle" : "radio_button_unchecked"
+              }</span>
+            </button>
         </div>
       </div>
     `;
   }
 
-  checkTasksForNotifications() {
-    if (!("Notification" in window)) return;
-
-    const now = new Date();
-    const soon = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutos no futuro
-
-    this.tasks.forEach((task) => {
-      if (task.completed) return;
-
-      const taskTime = new Date(`${task.date}T${task.time}`);
-
-      // Notificar se a tarefa está para começar em 15 minutos
-      if (taskTime > now && taskTime <= soon) {
-        this.showNotification(`Tarefa próxima: ${task.title} às ${task.time}`);
-        this.showSystemNotification(
-          "Tarefa próxima",
-          `${task.title} começa às ${task.time}`
-        );
-      }
-
-      // Notificar se a tarefa está atrasada
-      if (taskTime < now && now - taskTime < 24 * 60 * 60 * 1000) {
-        this.showNotification(`Tarefa atrasada: ${task.title}`, "error");
-        this.showSystemNotification(
-          "Tarefa atrasada",
-          `${task.title} deveria ter começado às ${task.time}`
-        );
-      }
-    });
-  }
-
-  showNotification(message, type = "info") {
-    const notification = document.getElementById("notification");
-    if (!notification) return;
-
-    notification.textContent = message;
-    notification.className = `notification ${type}`;
-    notification.classList.remove("hidden");
-
-    setTimeout(() => {
-      notification.classList.add("hidden");
-    }, 5000);
-  }
-
-  showSystemNotification(title, body) {
-    if ("Notification" in window && Notification.permission === "granted") {
-      const options = {
-        body,
-        icon: "/assets/icons/icon-192x192.png",
-        badge: "/assets/icons/badge-72x72.png",
-      };
-
-      // Verificar se já existe notificação igual para evitar duplicatas
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        if (!reg) return;
-
-        reg.getNotifications().then((notifs) => {
-          const alreadyShown = notifs.some(
-            (n) => n.title === title && n.body === body
-          );
-
-          if (!alreadyShown) {
-            reg.showNotification(title, options);
-          }
-        });
-      });
-    }
-  }
-
   loadTasks() {
     try {
       const savedTasks = localStorage.getItem("tasks");
-      this.tasks = savedTasks ? JSON.parse(savedTasks) : [];
+      return savedTasks ? JSON.parse(savedTasks) : [];
     } catch (error) {
       console.error("Erro ao carregar tarefas:", error);
-      this.tasks = [];
+      return [];
     }
   }
 
   saveTasks() {
-    try {
-      localStorage.setItem("tasks", JSON.stringify(this.tasks));
-    } catch (error) {
-      console.error("Erro ao salvar tarefas:", error);
-      this.showNotification("Erro ao salvar tarefas", "error");
-    }
+    localStorage.setItem("tasks", JSON.stringify(this.tasks));
   }
 
-  exportTasks() {
-    try {
-      const dataStr = JSON.stringify(this.tasks, null, 2);
-      const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(
-        dataStr
-      )}`;
+  /**
+   * Notificações Inteligentes
+   */
+  scheduleNextNotification() {
+    clearTimeout(this.notificationTimeout);
 
-      const exportName = `tasks-${new Date().toISOString().split("T")[0]}.json`;
-      const linkElement = document.createElement("a");
+    const now = new Date();
 
-      linkElement.setAttribute("href", dataUri);
-      linkElement.setAttribute("download", exportName);
-      linkElement.click();
+    const upcomingTasks = this.tasks
+      .filter((task) => !task.completed && !task.notified)
+      .map((task) => ({
+        ...task,
+        dateTime: new Date(`${task.date}T${task.time}`),
+      }))
+      .filter((task) => task.dateTime > now)
+      .sort((a, b) => a.dateTime - b.dateTime);
 
-      this.showNotification("Tarefas exportadas com sucesso!");
-    } catch (error) {
-      console.error("Erro ao exportar tarefas:", error);
-      this.showNotification("Erro ao exportar tarefas", "error");
-    }
-  }
+    if (upcomingTasks.length === 0) return;
 
-  handleFileImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    const nextTask = upcomingTasks[0];
+    const delay = nextTask.dateTime.getTime() - now.getTime();
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const tasks = JSON.parse(e.target.result);
-        if (!Array.isArray(tasks)) {
-          throw new Error("Formato de arquivo inválido");
-        }
+    if (delay < 0 || delay > 2147483647) return;
 
-        const modal = document.createElement("div");
-        modal.className = "confirmation-modal";
-        modal.innerHTML = `
-          <div class="modal-content">
-            <h3>Confirmar importação</h3>
-            <p>Deseja importar ${tasks.length} tarefas? Isso substituirá suas tarefas atuais.</p>
-            <div class="modal-actions">
-              <button class="mdc-button cancel-import">Cancelar</button>
-              <button class="mdc-button mdc-button--raised confirm-import">Importar</button>
-            </div>
-          </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        modal.querySelector(".cancel-import").addEventListener("click", () => {
-          document.body.removeChild(modal);
-          event.target.value = "";
+    this.notificationTimeout = setTimeout(() => {
+      const taskToNotify = this.tasks.find((t) => t.id === nextTask.id);
+      if (taskToNotify && !taskToNotify.completed && !taskToNotify.notified) {
+        this.notificationManager.showSystem(`Lembrete: ${taskToNotify.title}`, {
+          body: `Sua tarefa está agendada para agora (${taskToNotify.time}).`,
+          tag: taskToNotify.id,
         });
 
-        modal.querySelector(".confirm-import").addEventListener("click", () => {
-          this.tasks = tasks;
-          this.saveAndUpdateUI();
-          this.showNotification(
-            `${tasks.length} tarefas importadas com sucesso!`
-          );
-          document.body.removeChild(modal);
-          event.target.value = "";
-        });
-      } catch (error) {
-        console.error("Erro ao importar tarefas:", error);
-        this.showNotification(
-          "Erro ao importar tarefas: " + error.message,
-          "error"
-        );
-        event.target.value = "";
+        taskToNotify.notified = true;
+        this.saveAndRender();
+      } else {
+        this.scheduleNextNotification();
       }
-    };
-    reader.readAsText(file);
-  }
-
-  formatDate(dateString) {
-    const options = { weekday: "short", day: "numeric", month: "short" };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    }, delay);
   }
 }
-
-// Inicializar quando o DOM estiver pronto
-document.addEventListener("DOMContentLoaded", () => {
-  window.taskManager = new TaskManager();
-});
