@@ -1,0 +1,8 @@
+# robots.txt para Tokei
+# Permite que todos os robôs de busca acessem todo o conteúdo do site.
+
+User-agent: *
+Allow: /
+
+# Localização do Sitemap
+Sitemap: https://opugacodez.github.io/tokei/sitemap.xml
