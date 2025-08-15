@@ -1,15 +1,8 @@
-/**
- * Tokei - exportImport.js
- * Gerencia a funcionalidade de importação e exportação de tarefas.
- */
-
 class ExportImportManager {
   constructor(taskManager, notificationManager, dialogManager) {
     this.taskManager = taskManager;
     this.notificationManager = notificationManager;
     this.dialogManager = dialogManager;
-
-    // Elementos da DOM
     this.modal = document.getElementById("import-export-modal");
     this.openModalBtn = document.getElementById("import-export-btn");
     this.closeModalBtn = this.modal.querySelector(".close-modal-btn");
@@ -24,7 +17,6 @@ class ExportImportManager {
     this.openModalBtn.addEventListener("click", () => this.showModal());
     this.closeModalBtn.addEventListener("click", () => this.hideModal());
     this.modal.addEventListener("click", (e) => {
-      // Fecha o modal se o clique for no fundo escuro
       if (e.target === this.modal) {
         this.hideModal();
       }
@@ -43,9 +35,6 @@ class ExportImportManager {
     this.modal.classList.add("hidden");
   }
 
-  /**
-   * Exporta as tarefas atuais para um arquivo JSON.
-   */
   exportTasks() {
     const tasks = this.taskManager.tasks;
     if (tasks.length === 0) {
@@ -78,10 +67,6 @@ class ExportImportManager {
     this.hideModal();
   }
 
-  /**
-   * Lida com a seleção de um arquivo para importação.
-   * @param {Event} event - O evento de mudança do input de arquivo.
-   */
   handleFileImport(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -114,7 +99,6 @@ class ExportImportManager {
           "error"
         );
       } finally {
-        // Reseta o input para permitir a seleção do mesmo arquivo novamente.
         this.fileInput.value = "";
       }
     };

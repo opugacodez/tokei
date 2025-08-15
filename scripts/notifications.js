@@ -1,8 +1,3 @@
-/**
- * Tokei - notifications.js
- * Gerencia notificações locais (na página) e notificações do sistema (Push API).
- */
-
 class NotificationManager {
   constructor() {
     this.notificationContainer = document.getElementById(
@@ -12,10 +7,6 @@ class NotificationManager {
     this.permission = Notification.permission;
   }
 
-  /**
-   * Solicita permissão para exibir notificações do sistema ao usuário.
-   * @returns {Promise<string>} O status da permissão ('granted', 'denied', 'default').
-   */
   async requestSystemPermission() {
     if (!("Notification" in window)) {
       console.warn("Este navegador não suporta notificações.");
@@ -32,19 +23,13 @@ class NotificationManager {
       this.showLocal(
         "As notificações estão bloqueadas. Ative nas configurações do navegador.",
         "error",
-        10000 // Mostra por mais tempo
+        10000
       );
     }
 
     return this.permission;
   }
 
-  /**
-   * Exibe uma notificação local (um banner na página).
-   * @param {string} message - A mensagem a ser exibida.
-   * @param {string} type - O tipo de notificação ('info', 'success', 'error').
-   * @param {number} duration - Duração em milissegundos.
-   */
   showLocal(message, type = "info", duration = 4000) {
     if (!this.notificationContainer) return;
 
@@ -59,29 +44,35 @@ class NotificationManager {
     }, duration);
   }
 
-  /**
-   * Exibe uma notificação do sistema operacional.
-   * @param {string} title - O título da notificação.
-   * @param {object} options - Opções da notificação (body, icon, etc.).
-   */
   async showSystem(title, options) {
-    // Garante que temos a permissão mais recente antes de tentar notificar
-    if (this.permission !== "granted") {
-      const currentPermission = await this.requestSystemPermission();
-      if (currentPermission !== "granted") {
-        console.log("Permissão para notificar negada.");
+    try {
+      if (this.permission !== "granted") {
+        const currentPermission = await this.requestSystemPermission();
+        if (currentPermission !== "granted") {
+          console.log("Permissão para notificar negada.");
+          return;
+        }
+      }
+
+      if (!navigator.serviceWorker) {
+        this.showLocal(title, "info", 4000);
         return;
       }
-    }
 
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (reg) {
-      const defaultOptions = {
-        icon: "/tokei/assets/icons/icon-192x192.svg",
-        badge: "/tokei/assets/icons/badge-72x72.svg",
-        ...options,
-      };
-      reg.showNotification(title, defaultOptions);
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        const defaultOptions = {
+          icon: "assets/icons/icon-192x192.svg",
+          badge: "assets/icons/badge-72x72.svg",
+          ...options,
+        };
+        reg.showNotification(title, defaultOptions);
+      } else {
+        this.showLocal(title, "info", 4000);
+      }
+    } catch (error) {
+      console.error("Erro ao mostrar notificação:", error);
+      this.showLocal(title, "info", 4000);
     }
   }
 }

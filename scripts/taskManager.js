@@ -1,14 +1,7 @@
-/**
- * Tokei - taskManager.js
- * Gerencia a lógica de negócio das tarefas: criar, ler, atualizar, deletar e salvar.
- */
-
 class TaskManager {
   constructor(notificationManager, dialogManager) {
     this.notificationManager = notificationManager;
     this.dialogManager = dialogManager;
-
-    // Elementos da DOM
     this.tasksListElement = document.getElementById("tasks-list");
     this.taskFormContainer = document.getElementById("task-form-container");
     this.taskForm = document.getElementById("task-form");
@@ -16,15 +9,11 @@ class TaskManager {
     this.cancelTaskBtn = document.getElementById("cancel-task-btn");
     this.searchInput = document.getElementById("search-tasks");
     this.sortSelect = document.getElementById("sort-tasks");
-
-    // Estado
     this.tasks = this.loadTasks();
     this.currentEditId = null;
     this.notificationTimeout = null;
     this.searchTerm = "";
     this.sortOrder = "date-asc";
-
-    // Canal para sincronização em tempo real entre abas
     this.broadcastChannel = new BroadcastChannel("tokei-task-updates");
 
     this.init();
@@ -38,14 +27,11 @@ class TaskManager {
   }
 
   setupEventListeners() {
-    // Abrir e fechar formulário
     this.addTaskBtn.addEventListener("click", () => this.showTaskForm());
     this.cancelTaskBtn.addEventListener("click", () => this.hideTaskForm());
 
-    // Submissão do formulário
     this.taskForm.addEventListener("submit", (e) => this.handleFormSubmit(e));
 
-    // Ações na lista de tarefas (delegação de eventos)
     this.tasksListElement.addEventListener("click", (e) => {
       const button = e.target.closest("[data-action]");
       if (!button) return;
@@ -64,7 +50,6 @@ class TaskManager {
       }
     });
 
-    // Busca e Ordenação
     this.searchInput.addEventListener("input", (e) => {
       this.searchTerm = e.target.value.toLowerCase();
       this.renderTasks();
@@ -75,7 +60,6 @@ class TaskManager {
       this.renderTasks();
     });
 
-    // Listener para sincronização entre abas via BroadcastChannel
     this.broadcastChannel.onmessage = () => {
       console.log("Mensagem recebida do Broadcast Channel. Atualizando UI...");
       this.tasks = this.loadTasks();
@@ -84,13 +68,9 @@ class TaskManager {
     };
   }
 
-  /**
-   * Lógica do Formulário
-   */
   showTaskForm(task = null) {
     this.taskForm.reset();
     if (task) {
-      // Modo de Edição
       this.taskForm.elements["task-id"].value = task.id;
       this.taskForm.elements["task-title"].value = task.title;
       this.taskForm.elements["task-description"].value = task.description || "";
@@ -98,7 +78,6 @@ class TaskManager {
       this.taskForm.elements["task-time"].value = task.time;
       this.currentEditId = task.id;
     } else {
-      // Modo de Criação
       const now = new Date();
       this.taskForm.elements["task-date"].value = now
         .toISOString()
@@ -152,9 +131,6 @@ class TaskManager {
     this.hideTaskForm();
   }
 
-  /**
-   * Ações CRUD de Tarefas
-   */
   editTask(taskId) {
     const task = this.tasks.find((t) => t.id === taskId);
     if (task) {
@@ -185,9 +161,6 @@ class TaskManager {
     }
   }
 
-  /**
-   * Renderização e Persistência
-   */
   saveAndRender() {
     this.saveTasks();
     this.renderTasks();
@@ -196,7 +169,6 @@ class TaskManager {
   }
 
   renderTasks() {
-    // 1. Filtrar
     let processedTasks = this.tasks.filter(
       (task) =>
         task.title.toLowerCase().includes(this.searchTerm) ||
@@ -204,14 +176,11 @@ class TaskManager {
           task.description.toLowerCase().includes(this.searchTerm))
     );
 
-    // 2. Ordenar
     processedTasks.sort((a, b) => {
-      // Tarefas não concluídas sempre primeiro
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
       }
 
-      // Lógica de ordenação secundária
       switch (this.sortOrder) {
         case "date-asc":
           return (
@@ -252,7 +221,7 @@ class TaskManager {
       !task.completed &&
       !isOverdue &&
       dueDate - now > 0 &&
-      dueDate - now < 30 * 60 * 1000; // 30 min
+      dueDate - now < 30 * 60 * 1000;
 
     let statusClass = "";
     let statusText = "";
@@ -322,9 +291,6 @@ class TaskManager {
     localStorage.setItem("tasks", JSON.stringify(this.tasks));
   }
 
-  /**
-   * Notificações Inteligentes
-   */
   scheduleNextNotification() {
     clearTimeout(this.notificationTimeout);
 

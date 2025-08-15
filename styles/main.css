@@ -1,9 +1,3 @@
-/*
- * Tokei - main.css
- * Estrutura de Estilos Globais e Componentes da UI
- */
-
-/* 1. Variáveis de Tema (Light & Dark Mode) */
 :root {
   --primary-color: #1a73e8;
   --primary-dark: #004bb3;
@@ -43,7 +37,6 @@
   }
 }
 
-/* 2. Reset e Configurações Globais */
 * {
   margin: 0;
   padding: 0;
@@ -57,7 +50,6 @@ body {
   line-height: 1.6;
 }
 
-/* 3. Layout Principal */
 .app-header {
   background-color: var(--surface);
   color: var(--on-surface);
@@ -97,9 +89,6 @@ body {
   }
 }
 
-/* 4. Componentes */
-
-/* Botões */
 .mdc-button {
   display: inline-flex;
   align-items: center;
@@ -154,10 +143,9 @@ body {
   background-color: rgba(26, 115, 232, 0.08);
 }
 
-/* Seção do Relógio */
 .clock-section {
   position: sticky;
-  top: 80px; /* Altura do header + margem */
+  top: 80px;
 }
 
 .clock-container {
@@ -173,7 +161,7 @@ body {
   font-weight: 500;
   color: var(--primary-color);
   letter-spacing: 2px;
-  white-space: nowrap; /* Impede a quebra de linha do AM/PM */
+  white-space: nowrap;
 }
 
 .date-display {
@@ -182,7 +170,6 @@ body {
   margin-bottom: 1.5rem;
 }
 
-/* Seção de Tarefas */
 .tasks-header {
   display: flex;
   justify-content: space-between;
@@ -197,7 +184,6 @@ body {
   gap: 0.5rem;
 }
 
-/* Opções de Busca e Ordenação */
 .tasks-options {
   display: flex;
   justify-content: space-between;
@@ -222,7 +208,7 @@ body {
 
 #search-tasks {
   width: 100%;
-  padding: 0.75rem 0.75rem 0.75rem 2.5rem; /* Espaço para o ícone */
+  padding: 0.75rem 0.75rem 0.75rem 2.5rem;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 1rem;
@@ -250,7 +236,6 @@ body {
   cursor: pointer;
 }
 
-/* Formulário de Tarefa */
 .task-form-container {
   background-color: var(--surface);
   border-radius: 12px;
@@ -264,7 +249,7 @@ body {
 }
 
 .task-form-container:not(.hidden) {
-  max-height: 500px; /* Altura suficiente para o conteúdo */
+  max-height: 500px;
   opacity: 1;
   padding: 1.5rem;
 }
@@ -325,7 +310,6 @@ body {
   margin-top: 0.5rem;
 }
 
-/* Lista de Tarefas */
 .tasks-list {
   display: flex;
   flex-direction: column;
@@ -410,7 +394,7 @@ body {
 }
 
 .task-item.due-soon {
-  border-left-color: #f9ab00; /* Amarelo */
+  border-left-color: #f9ab00;
 }
 .task-item.overdue {
   border-left-color: var(--error);
@@ -433,7 +417,6 @@ body {
   border-radius: 12px;
 }
 
-/* Modal */
 .modal {
   position: fixed;
   top: 0;
@@ -489,7 +472,6 @@ body {
   margin-top: 1.5rem;
 }
 
-/* Notificações */
 .notification {
   position: fixed;
   bottom: 1.5rem;
@@ -526,7 +508,6 @@ body {
   color: var(--on-primary);
 }
 
-/* Dialogos de Confirmação e PIX */
 .dialog-container {
   position: fixed;
   top: 0;
@@ -591,12 +572,10 @@ body {
   margin-top: 0.5rem;
 }
 
-/* Utilitários */
 .hidden {
   display: none;
 }
 
-/* Media Queries para Responsividade */
 @media (max-width: 600px) {
   .digital-clock {
     font-size: 2.5rem;

@@ -1,25 +1,23 @@
-/**
- * Tokei - main.js
- * Ponto de entrada principal do aplicativo.
- * Orquestra a inicialização de todos os módulos.
- */
-
 document.addEventListener("DOMContentLoaded", () => {
-  // Função para registrar o Service Worker
   const registerServiceWorker = () => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/sw.js")
+        .register("sw.js")
         .then((registration) => {
           console.log("Service Worker registrado com sucesso:", registration);
         })
         .catch((error) => {
           console.error("Falha ao registrar Service Worker:", error);
+          const notificationManager = new NotificationManager();
+          notificationManager.showLocal(
+            "Alguns recursos podem não funcionar corretamente (executando localmente)",
+            "warning",
+            5000
+          );
         });
     }
   };
 
-  // Inicialização dos Módulos
   const notificationManager = new NotificationManager();
   const dialogManager = new DialogManager();
   const clock = new DigitalClock();
@@ -30,12 +28,10 @@ document.addEventListener("DOMContentLoaded", () => {
     dialogManager
   );
 
-  // Event Listener para o botão de doação
   const donateBtn = document.getElementById("donate-btn");
   donateBtn.addEventListener("click", () => {
     dialogManager.showPixDialog();
   });
 
-  // Inicia o Service Worker
   registerServiceWorker();
 });

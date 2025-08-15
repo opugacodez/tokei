@@ -1,21 +1,8 @@
-/**
- * Tokei - dialogs.js
- * Gerencia a criação de diálogos de confirmação e alertas de forma padronizada.
- */
-
 class DialogManager {
   constructor() {
     this.dialogContainer = null;
   }
 
-  /**
-   * Exibe um diálogo genérico e retorna uma Promise que resolve com a ação do usuário.
-   * @param {object} options - Opções para o diálogo.
-   * @param {string} options.title - O título do diálogo.
-   * @param {string} options.message - A mensagem principal.
-   * @param {Array<object>} options.buttons - Array de botões com 'label' e 'action'.
-   * @returns {Promise<string>} A ação ('action') do botão clicado.
-   */
   showDialog({ title, message, buttons }) {
     return new Promise((resolve) => {
       if (this.dialogContainer) {
@@ -57,9 +44,6 @@ class DialogManager {
     });
   }
 
-  /**
-   * Exibe um diálogo customizado para doação via PIX.
-   */
   showPixDialog() {
     if (this.dialogContainer) {
       this.dialogContainer.remove();
